@@ -1,6 +1,4 @@
 import pygame, sys, time, qiskit, math
-from qiskit import Aer, transpile
-simulator = Aer.get_backend('aer_simulator')
 
 def quitGame():
   pygame.display.quit()
@@ -17,6 +15,7 @@ def drawGrid(boundingRect):
   for i in range(GRID_SIZE):
     pygame.draw.rect(screen, (255,0,0), (boundingRect.left, (i+1)*hori_spacing + boundingRect.top, boundingRect.width ,GRID_THICKNESS))
 
+
 def mouseCoordToGrid(boundingRect):
   mouse_pos = pygame.mouse.get_pos()
   vert_spacing = boundingRect.width/(GRID_SIZE+1)
@@ -28,15 +27,23 @@ def mouseCoordToGrid(boundingRect):
     j -1
   return(i, j)
 
-def handleEvents():
-    events = pygame.event.get()
-    for i in range(len(events)):
-        if events[i].type == pygame.QUIT:
-          quitGame()
-        if events[i].type == pygame.MOUSEBUTTONDOWN:
-            if (mouse_pos[0]) < 0:
-                return
-            board[mouse_pos[0]][mouse_pos[1]] = 'H'
+class Button:
+  def __init__(self, width, height, name, color):
+    self.width = width
+    self.height = height
+    self.name = name
+    self.color = color
+  
+  def mouseOnButton(self, left, top, mouse_pos):
+    return (mouse_pos[0] > left and mouse_pos[0] < left + self.width and mouse_pos[1] > top and mouse_pos[1] < top + self.height)
+
+  def draw(self, left, top):
+    pygame.draw.rect(screen, self.color, pygame.Rect(left, top, self.width, self.height))
+    
+def renderButtons(buttons, left, top):
+  button_spacing = 50
+  for i in range(len(buttons)):
+    buttons[i].draw(left + i * (buttons[i].width + button_spacing), top)
 
 def boardToCircuit():
   global board
@@ -50,9 +57,6 @@ def boardToCircuit():
     for i in range(GRID_SIZE):
       if (board[i][j] == "H"):
         qc2.h(i)
-
-  print(qc1)
-  print(qc2)
   return [qc1, qc2]
 
 def drawGridElements(boundingRect):
@@ -68,17 +72,31 @@ def drawGridElements(boundingRect):
       if board[i][j] == "X":
         pygame.draw.circle(screen, (0,200,0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), 30)
 
-def calculateScores():
-  global simulator
-  circuits = boardToCircuit()
-  circuits[0].save_statevector()
-  circuits[0] = transpile(circuits[0], simulator)
-  resultp1 = simulator.run(circuits[0]).result()
-  statevectorp1 = resultp1.get_statevector(circuits[0])
+current_gate = '0'
 
+def handleEvents():
+  events = pygame.event.get()
+  for i in range(len(events)):
+    if events[i].type == pygame.QUIT:
+      quitGame()
+    if events[i].type == pygame.MOUSEBUTTONDOWN:
+      for button in buttons:
+        if button.mouseOnButton(bounding_box.left, bounding_box.top + bounding_box.height + button_margin, pygame.mouse.get_pos()):
+          print("BUTTON " + button.name)
+          global current_gate # bad practice but works for now
+          current_gate = button.name
+          return
+      if (mouse_pos[0]) < 0:
+        return
+      if (current_gate == '0'):
+        return
+      board[mouse_pos[0]][mouse_pos[1]] = current_gate
+
+
+current_gate = '0'
 pygame.init()
-SCREEN_X = 640
-SCREEN_Y = 480
+SCREEN_X = 1280 * 2/3
+SCREEN_Y = 960 * 2/3
 screen = pygame.display.set_mode((SCREEN_X,SCREEN_Y))
 GRID_SIZE = 3
 GRID_THICKNESS = 5
@@ -88,13 +106,25 @@ for i in range(GRID_SIZE):
   for j in range(GRID_SIZE):
     row.append("0")
   board.append(row)
+boardToCircuit()
+bounding_box = pygame.Rect(100,100,400,400)
+button_width = 50
+button_height = 50
+buttons = [
+  Button(button_width, button_height, 'H', (255, 0, 0)),
+  Button(button_width, button_height, 'X', (255, 255, 0)),
+  Button(button_width, button_height, 'Y', (0, 0, 255)),
+  Button(button_width, button_height, 'Z', (0, 255, 0)),
+]
+button_margin = 50
 
 while True:
-    bounding_box = pygame.Rect(50,100,400,400)
-    drawGrid(bounding_box)
-    mouse_pos = mouseCoordToGrid(bounding_box)
-    drawGridElements(bounding_box)
-    handleEvents()
-    pygame.display.update()
-    screen.fill((255,255,255))
-    time.sleep(0.01)
+  drawGrid(bounding_box)
+  mouse_pos = mouseCoordToGrid(bounding_box)
+  drawGridElements(bounding_box)
+  renderButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin)
+  handleEvents()
+  print(current_gate)
+  pygame.display.update()
+  screen.fill((255,255,255))
+  time.sleep(0.01)
