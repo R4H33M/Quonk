@@ -1,0 +1,23 @@
+%matplotlib inline
+
+from matplotlib import *
+from qiskit import *
+from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
+from qiskit.tools.visualization import circuit_drawer
+import matplotlib.pyplot as plt
+import matplotlib
+import seaborn
+
+def drawGrid(size, board):
+  plt.figure()
+
+  for i in range(1, size): 
+    plt.plot([i, i], [0.5, size-0.5], color = 'black')
+    plt.plot([0.5, size-0.5], [i, i], color = 'black')
+
+  for i in range(size):
+    for j in range(size):
+      # plot according to board[i][j]
+
+  plt.axis('off')
+  plt.show()
