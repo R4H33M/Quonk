@@ -22,7 +22,11 @@ class Button:
 
   # Render button
   def draw(self, left, top): 
-    pygame.draw.rect(screen, self.color, pygame.Rect(left, top, self.width, self.height))
+    button = pygame.Surface((self.width, self.height))
+    pygame.draw.rect(button, self.color, pygame.Rect(0, 0, self.width, self.height))
+    label = myfont.render(self.name, True, (255, 255, 255))
+    button.blit(label, ((self.width-label.get_width())/2, (self.height-label.get_height())/2))
+    screen.blit(button, (left, top))
 
 def quitGame():
   pygame.display.quit()
@@ -74,6 +78,7 @@ def handleEvents():
         return
       # update board
       board[mouse_pos[0]][mouse_pos[1]] = current_gate
+      images = calculateGraphs()
     elif events[i].type == pygame.KEYUP:
       rotateBoard()
       print(board)
@@ -100,18 +105,26 @@ def drawGridElements(boundingRect):
   hori_spacing = boundingRect.height/(GRID_SIZE+1)
   for i in range(GRID_SIZE):
     for j in range(GRID_SIZE):
-      # H gate
-      if board[i][j] == "H":
-        pygame.draw.circle(screen, (255, 0, 0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), 30)
-      # X gate
-      if board[i][j] == "X":
-        pygame.draw.circle(screen, (255, 255, 0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), 30)
-      # Y gate
-      if board[i][j] == "Y":
-        pygame.draw.circle(screen, (0, 0, 255), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), 30)
-      # Z gate
-      if board[i][j] == "Z":
-        pygame.draw.circle(screen, (0, 255, 0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), 30)
+      if (board[i][j] != "0"):
+        # H gate
+        color = (0, 0, 0)
+        if board[i][j] == "H":
+          color = (255, 0, 0)
+        # X gate
+        if board[i][j] == "X":
+          color = (255, 255, 0)
+        # Y gate
+        if board[i][j] == "Y":
+          color = (0, 0, 255)
+        # Z gate
+        if board[i][j] == "Z":
+          color = (0, 255, 0)
+        radius = vert_spacing * .4
+        pygame.draw.circle(screen, color, (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), radius)
+        # text
+        label = myfont.render(board[i][j], True, (255, 255, 255))
+        screen.blit(label, (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)* hori_spacing))
+
 
 
 def drawButtons(buttons, left, top):
@@ -159,6 +172,7 @@ def plotProbability(data):
   plt.xticks(np.arange(data.size), xk)
   l = l.pop(0)
   l.remove() 
+  plt.savefig("./plot.png")
 
 #clockwise 90 degree rotation (no animations!)
 def rotateBoard():
@@ -200,15 +214,29 @@ def drawScores():
   hori_spacing = bounding_box.height/(GRID_SIZE+1)
   vert_spacing = bounding_box.width/(GRID_SIZE+1)
   # for player 1
-  for qubit in range(3):
+  for qubit in range(GRID_SIZE):
     textsurface = myfont.render(str(calculateScore(1, qubit)), False, (0, 0, 0))
     screen.blit(textsurface, (bounding_box.right,(qubit+1)*hori_spacing + bounding_box.top))
   
   # for player 2
-  for qubit in range(3):
+  for qubit in range(GRID_SIZE):
     textsurface = myfont.render(str(calculateScore(2, qubit)), False, (0, 0, 0))
     screen.blit(textsurface, ((qubit+1)*vert_spacing + bounding_box.left, bounding_box.bottom))
 
+def calculateGraphs():
+  print("calculate")
+  plotProbability(getProbability(boardsToCircuit()[0]))
+  image1 = pygame.image.load("./plot.png")
+  image1 = pygame.transform.scale(image1, (400, image1.get_height() * 400.0 / image1.get_width()))
+  plotProbability(getProbability(boardsToCircuit()[1]))
+  image2 = pygame.image.load("./plot.png")
+  image2 = pygame.transform.scale(image2, (400, image2.get_height() * 400.0 / image2.get_width()))
+  return (image1, image2)
+
+def drawGraphs(images):
+  margin = 50
+  screen.blit(images[0], (bounding_box.left + bounding_box.width + margin, 50))
+  screen.blit(images[1], (bounding_box.left + bounding_box.width + margin, 50 + images[0].get_height() + 20))
 
 pygame.init()
 
@@ -251,10 +279,13 @@ board[1][0] = "X"
 print(boardsToCircuit()[0])
 print(boardsToCircuit()[1])
 
+images = calculateGraphs()
+
 while True:
     drawGrid(bounding_box)
     drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin)
     drawScores()
+    drawGraphs(images)
     mouse_pos = mouseCoordToGrid(bounding_box)
     drawGridElements(bounding_box)
     handleEvents()
