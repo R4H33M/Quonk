@@ -59,7 +59,7 @@ def handleEvents():
   for i in range(len(events)):
     if events[i].type == pygame.QUIT:
       quitGame()
-    if events[i].type == pygame.MOUSEBUTTONDOWN:
+    elif events[i].type == pygame.MOUSEBUTTONDOWN:
       # check if pressing button
       for i in range(len(buttons)):
         if buttons[i].mouseOnButton(bounding_box.left + i * (buttons[i].width + button_spacing), bounding_box.top + bounding_box.height + button_margin, pygame.mouse.get_pos()):
@@ -74,7 +74,7 @@ def handleEvents():
         return
       # update board
       board[mouse_pos[0]][mouse_pos[1]] = current_gate
-    if events[i].type == pygame.KEYUP:
+    elif events[i].type == pygame.KEYUP:
       rotateBoard()
       print(board)
 
