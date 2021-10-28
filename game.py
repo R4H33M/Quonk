@@ -78,6 +78,7 @@ def handleEvents():
         return
       # update board
       board[mouse_pos[0]][mouse_pos[1]] = current_gate
+      global images
       images = calculateGraphs()
     elif events[i].type == pygame.KEYUP:
       rotateBoard()
