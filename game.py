@@ -209,6 +209,56 @@ def boardsToCircuit():
 def qsphere(qc):
     state = Statevector(qc)
     state.draw('qsphere')
+   
+# Scoring: targetNumber, oneShot, scoreNumber
+# targetNumber: Generates the target number
+def targetNumber(GRID_SIZE):
+    import random
+    numstr = ''
+    for i in range(GRID_SIZE):
+        numstr += str(random.randint(0, 1))
+    target = int(numstr)
+    return target
+
+# oneShot: Simulates both circuits once and returns the numbers that each player gets. 
+def oneShot(qc1, qc2):
+    from qiskit.providers.aer import QasmSimulator
+    backend = QasmSimulator(method = 'statevector')
+    register = np.arange(0, qc1.num_qubits, 1)
+    qc1.measure(register, register)
+    qc2.measure(register, register)
+    result1 = execute(qc1, backend=backend, shots = 1).result()
+    count1 = result1.get_counts()
+    result2 = execute(qc2, backend=backend, shots = 1).result()
+    count2 = result2.get_counts()
+    number1 = list(count1.keys())[list(count1.values()).index(1)]
+    number2 = list(count2.keys())[list(count1.values()).index(1)]
+    return [number1, number2]
+
+# scoreNumber: Updates players' scores
+# cs1, cs2: current scores of Players 1 and 2
+def scoreNumber(qc1, qc2, cs1, cs2, targetNum):    
+    playerNums = oneShot(qc1, qc2)
+    if((playerNums[0] == targetNum and playerNums[1] == targetNum)):
+        cs1 += 3
+        cs2 += 3
+        print('Player 1 and 2 Both Attained the Target!')
+    elif(playerNums[0] == targetNum):
+        cs1 += 3
+        print('Player 1 Attained the Target!')
+    elif(playerNums[1] == targetNum):
+        cs1 += 3
+        print('Player 1 Attained the Target!')
+    elif(playerNums[0] == playerNums[1]):
+        cs1 += 1
+        cs2 += 1
+        print('Player 1 and 2 Attained the Same Number!')
+    elif(bin(playerNums[0]) < bin(playerNums[1])):
+        cs2 += 1
+        print('Player 2 Wins!')
+    elif(bin(playerNums[0]) > bin(playerNums[1])):
+        cs1 += 1
+        print('Player 1 Wins!')
 
 def drawScores():
   global myfont, screen, bounding_box
