@@ -3,9 +3,10 @@ from qiskit import *
 import numpy as np
 from qiskit.quantum_info import Statevector
 import matplotlib.pyplot as plt
+simulator = Aer.get_backend('aer_simulator')
+
 
 probabilities = [] # Used to keep all probability data
-
 
 # Gate selector buttons
 class Button:
@@ -22,7 +23,6 @@ class Button:
   # Render button
   def draw(self, left, top): 
     pygame.draw.rect(screen, self.color, pygame.Rect(left, top, self.width, self.height))
-
 
 def quitGame():
   pygame.display.quit()
@@ -54,6 +54,7 @@ def mouseCoordToGrid(boundingRect):
 
 # Handles user input
 def handleEvents():
+  global current_gate, board
   events = pygame.event.get()
   for i in range(len(events)):
     if events[i].type == pygame.QUIT:
@@ -73,23 +74,25 @@ def handleEvents():
         return
       # update board
       board[mouse_pos[0]][mouse_pos[1]] = current_gate
+    if events[i].type == pygame.KEYUP:
+      rotateBoard()
+      print(board)
 
-def boardToCircuit():
+def boardLineToCircuit(player, qubit):
   global board
-  qc1 = qiskit.QuantumCircuit(GRID_SIZE)
-  qc2 = qiskit.QuantumCircuit(GRID_SIZE)
+  qc = qiskit.QuantumCircuit(1)
   for i in range(GRID_SIZE):
-    for j in range(GRID_SIZE):
-      if (board[i][j] == "H"):
-        qc1.h(j)
-  for j in range(GRID_SIZE):
-    for i in range(GRID_SIZE):
-      if (board[i][j] == "H"):
-        qc2.h(i)
-
-  print(qc1)
-  print(qc2)
-  return [qc1, qc2]
+    if player == 1:
+      if board[i][qubit] == "H": qc.h(0)
+      if board[i][qubit] == "X": qc.x(0)
+      if board[i][qubit] == "Y": qc.y(0)
+      if board[i][qubit] == "Z": qc.z(0)
+    elif player == 2:
+      if board[qubit][i] == "H": qc.h(0)
+      if board[qubit][i] == "X": qc.x(0)
+      if board[qubit][i] == "Y": qc.y(0)
+      if board[qubit][i] == "Z": qc.z(0)
+  return qc
 
 def drawGridElements(boundingRect):
   global board
@@ -116,16 +119,14 @@ def drawButtons(buttons, left, top):
     buttons[i].draw(left + i * (buttons[i].width + button_spacing), top)
 
 
-
-#Deleted this function and replaced with getProbability.
-
-#def calculateScores():
- # global simulator
-  #circuits = boardToCircuit()
-  #circuits[0].save_statevector()
-  #circuits[0] = transpile(circuits[0], simulator)
-  #resultp1 = simulator.run(circuits[0]).result()
-  #statevectorp1 = resultp1.get_statevector(circuits[0])
+def calculateScore(player, qubit):
+  global simulator
+  circuit = boardLineToCircuit(player, qubit)
+  circuit.save_statevector()
+  circuit = transpile(circuit, simulator)
+  result = simulator.run(circuit).result()
+  statevector = result.get_statevector(circuit)
+  return np.around(np.real(statevector[1]*np.conj(statevector[1])), decimals = 2)
 
 # Calculate Probability Vector
 def getProbability(qc):
@@ -133,7 +134,6 @@ def getProbability(qc):
     probs = state.probabilities()
     probabilities.append(probs)
     return probs #NumPy array
-
 
 # Visualising the Probability Distribution
 
@@ -160,11 +160,54 @@ def plotProbability(data):
   l = l.pop(0)
   l.remove() 
 
+#clockwise 90 degree rotation (no animations!)
+def rotateBoard():
+  global board
+  newboard = []
+  for i in range(GRID_SIZE):
+    newboard.append(board[i].copy())
+  for i in range(GRID_SIZE):
+    for j in range(GRID_SIZE):
+      newboard[GRID_SIZE-i-1][j] = board[j][i]
+  board = newboard
+
+
+def boardsToCircuit():
+  global board
+  qc1 = qiskit.QuantumCircuit(GRID_SIZE)
+  qc2 = qiskit.QuantumCircuit(GRID_SIZE)
+  for i in range(GRID_SIZE):
+    for j in range(GRID_SIZE):
+      if (board[i][j] == "H"): qc1.h(j)
+      if (board[i][j] == "X"): qc1.x(j)
+      if (board[i][j] == "Y"): qc1.y(j)
+      if (board[i][j] == "Z"): qc1.z(j)
+  for j in range(GRID_SIZE):
+    for i in range(GRID_SIZE):
+      if (board[i][j] == "H"): qc2.h(i)
+      if (board[i][j] == "X"): qc2.x(i)
+      if (board[i][j] == "Y"): qc2.y(i)
+      if (board[i][j] == "Z"): qc2.z(i)
+  return [qc1, qc2]
 
 # Visualising the Quantum State as a QSphere
 def qsphere(qc):
     state = Statevector(qc)
     state.draw('qsphere')
+
+def drawScores():
+  global myfont, screen, bounding_box
+  hori_spacing = bounding_box.height/(GRID_SIZE+1)
+  vert_spacing = bounding_box.width/(GRID_SIZE+1)
+  # for player 1
+  for qubit in range(3):
+    textsurface = myfont.render(str(calculateScore(1, qubit)), False, (0, 0, 0))
+    screen.blit(textsurface, (bounding_box.right,(qubit+1)*hori_spacing + bounding_box.top))
+  
+  # for player 2
+  for qubit in range(3):
+    textsurface = myfont.render(str(calculateScore(2, qubit)), False, (0, 0, 0))
+    screen.blit(textsurface, ((qubit+1)*vert_spacing + bounding_box.left, bounding_box.bottom))
 
 
 pygame.init()
@@ -198,9 +241,20 @@ buttons = [
   Button(button_width, button_height, 'Z', (0, 255, 0)),
 ]
 
+# Prepare stuff for text drawing
+pygame.font.init()
+myfont = pygame.font.SysFont('Comic Sans MS', 45)
+
+# Testing board state
+board[0][0] = "H"
+board[1][0] = "X"
+print(boardsToCircuit()[0])
+print(boardsToCircuit()[1])
+
 while True:
     drawGrid(bounding_box)
     drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin)
+    drawScores()
     mouse_pos = mouseCoordToGrid(bounding_box)
     drawGridElements(bounding_box)
     handleEvents()
