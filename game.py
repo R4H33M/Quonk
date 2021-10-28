@@ -147,14 +147,18 @@ def generateCode(n):
     return ['0'+x for x in generateCode(n-1)] + ['1'+x for x in generateCode(n-1)]
 
 # Plot probability using matplotlib
-# needs repair (for histogram display)
-def plotProbability(data): # data given by numpy array
+def plotProbability(data):
   n = math.log2(data.size)
   xk = generateCode(n)
   pk = data
 
-  plt.plot(np.arange(data.size), pk, 'bo')
+  l = plt.plot(np.arange(data.size), pk)
+  for i in range(data.size):
+    plt.fill([i-0.5, i-0.5, i+0.5, i+0.5],[0, pk[i], pk[i], 0] ,color='red', alpha = 0.5)
+
   plt.xticks(np.arange(data.size), xk)
+  l = l.pop(0)
+  l.remove() 
 
 
 # Visualising the Quantum State as a QSphere
