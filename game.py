@@ -5,7 +5,6 @@ from qiskit.quantum_info import Statevector
 import matplotlib.pyplot as plt
 simulator = Aer.get_backend('aer_simulator')
 
-
 probabilities = [] # Used to keep all probability data
 
 # Gate selector buttons
@@ -158,7 +157,7 @@ def generateCode(n):
     return ['0', '1']
   
   else:
-    return ['0'+x for x in generateCode(n-1)] + ['1'+x for x in generateCode(n-1)]
+    return ['0'+ x for x in generateCode(n-1)] + ['1'+x for x in generateCode(n-1)]
 
 # Plot probability using matplotlib
 def plotProbability(data):
@@ -174,6 +173,7 @@ def plotProbability(data):
   l = l.pop(0)
   l.remove() 
   plt.savefig("./plot.png")
+  plt.clf()
 
 #clockwise 90 degree rotation (no animations!)
 def rotateBoard():
@@ -225,11 +225,12 @@ def drawScores():
     screen.blit(textsurface, ((qubit+1)*vert_spacing + bounding_box.left, bounding_box.bottom))
 
 def calculateGraphs():
-  print("calculate")
-  plotProbability(getProbability(boardsToCircuit()[0]))
+  player = 0
+  plotProbability(getProbability(boardsToCircuit()[player]))
   image1 = pygame.image.load("./plot.png")
   image1 = pygame.transform.scale(image1, (400, image1.get_height() * 400.0 / image1.get_width()))
-  plotProbability(getProbability(boardsToCircuit()[1]))
+  player = 1
+  plotProbability(getProbability(boardsToCircuit()[player]))
   image2 = pygame.image.load("./plot.png")
   image2 = pygame.transform.scale(image2, (400, image2.get_height() * 400.0 / image2.get_width()))
   return (image1, image2)
@@ -276,7 +277,6 @@ myfont = pygame.font.SysFont('Comic Sans MS', 45)
 
 # Testing board state
 board[0][0] = "H"
-board[1][0] = "X"
 print(boardsToCircuit()[0])
 print(boardsToCircuit()[1])
 
