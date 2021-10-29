@@ -9,23 +9,20 @@ probabilities = [] # Used to keep all probability data
 
 # Gate selector buttons
 class Button:
-  def __init__(self, width, height, name, color):
+  def __init__(self, width, height, name):
     self.width = width
     self.height = height
     self.name = name
-    self.color = color
 
   # Returns true if mouse position is on the button
   def mouseOnButton(self, left, top, mouse_pos):
     return (mouse_pos[0] > left and mouse_pos[0] < left + self.width and mouse_pos[1] > top and mouse_pos[1] < top + self.height)
 
   # Render button
-  def draw(self, left, top): 
-    button = pygame.Surface((self.width, self.height))
-    pygame.draw.rect(button, self.color, pygame.Rect(0, 0, self.width, self.height))
-    label = myfont.render(self.name, True, (255, 255, 255))
-    button.blit(label, ((self.width-label.get_width())/2, (self.height-label.get_height())/2))
-    screen.blit(button, (left, top))
+  def draw(self, left, top, width, height): 
+    image = pygame.image.load("./assets/" + self.name + ".png")
+    image = pygame.transform.scale(image, (width, height))
+    screen.blit(image, (left, top))
 
 def quitGame():
   pygame.display.quit()
@@ -42,7 +39,6 @@ def drawGrid(boundingRect):
   for i in range(GRID_SIZE):
     pygame.draw.rect(screen, (255,0,0), (boundingRect.left, (i+1)*hori_spacing + boundingRect.top, boundingRect.width ,GRID_THICKNESS))
 
-
 # Convert mouse's x,y position to i,j on the grid
 def mouseCoordToGrid(boundingRect):
   mouse_pos = pygame.mouse.get_pos()
@@ -53,7 +49,7 @@ def mouseCoordToGrid(boundingRect):
   if i < 0 or i > GRID_SIZE - 1 or j < 0 or j > GRID_SIZE - 1:
     i = -1
     j = -1
-  return(i, j)
+  return (i, j)
 
 # Handles user input
 def handleEvents():
@@ -67,21 +63,22 @@ def handleEvents():
       for i in range(len(buttons)):
         if buttons[i].mouseOnButton(bounding_box.left + i * (buttons[i].width + button_spacing), bounding_box.top + bounding_box.height + button_margin, pygame.mouse.get_pos()):
           print("BUTTON " + buttons[i].name)
-          global current_gate # very funky python is weird
-          current_gate = buttons[i].name
+          if len(buttons[i].name) == 1:
+            current_gate = buttons[i].name
+          elif (buttons[i].name == 'rotatecw'):
+            rotateBoard('cw')
+          elif (buttons[i].name == 'rotateccw'):
+            rotateBoard('ccw')
+          elif (buttons[i].name == 'trash'):
+            current_gate = '0'
           return
       # check if out of bounds
       if (mouse_pos[0]) < 0:
-        return
-      if (current_gate == '0'):
         return
       # update board
       board[mouse_pos[0]][mouse_pos[1]] = current_gate
       global images
       images = calculateGraphs()
-    elif events[i].type == pygame.KEYUP:
-      rotateBoard()
-      print(board)
 
 def boardLineToCircuit(player, qubit):
   global board
@@ -127,9 +124,10 @@ def drawGridElements(boundingRect):
 
 
 
-def drawButtons(buttons, left, top):
+def drawButtons(buttons, left, top, box_width, spacing):
+  button_width = (box_width - spacing * (len(buttons) - 1)) / len(buttons)
   for i in range(len(buttons)):
-    buttons[i].draw(left + i * (buttons[i].width + button_spacing), top)
+    buttons[i].draw(left + i * (buttons[i].width + button_spacing), top, button_width, button_width)
 
 
 def calculateScore(player, qubit):
@@ -176,16 +174,23 @@ def plotProbability(data):
   plt.clf()
 
 #clockwise 90 degree rotation (no animations!)
-def rotateBoard():
+def rotateBoard(direction):
   global board
   newboard = []
-  for i in range(GRID_SIZE):
-    newboard.append(board[i].copy())
-  for i in range(GRID_SIZE):
-    for j in range(GRID_SIZE):
-      newboard[GRID_SIZE-i-1][j] = board[j][i]
-  board = newboard
-
+  if (direction == 'cw'):
+    for i in range(GRID_SIZE):
+      newboard.append(board[i].copy())
+    for i in range(GRID_SIZE):
+      for j in range(GRID_SIZE):
+        newboard[GRID_SIZE-i-1][j] = board[j][i]
+    board = newboard
+  elif (direction == 'ccw'):
+    for i in range(GRID_SIZE):
+      newboard.append(board[i].copy())
+    for i in range(GRID_SIZE):
+      for j in range(GRID_SIZE):
+        newboard[i][GRID_SIZE - j - 1] = board[j][i]
+    board = newboard
 
 def boardsToCircuit():
   global board
@@ -209,56 +214,6 @@ def boardsToCircuit():
 def qsphere(qc):
     state = Statevector(qc)
     state.draw('qsphere')
-   
-# Scoring: targetNumber, oneShot, scoreNumber
-# targetNumber: Generates the target number
-def targetNumber(GRID_SIZE):
-    import random
-    numstr = ''
-    for i in range(GRID_SIZE):
-        numstr += str(random.randint(0, 1))
-    target = int(numstr)
-    return target
-
-# oneShot: Simulates both circuits once and returns the numbers that each player gets. 
-def oneShot(qc1, qc2):
-    from qiskit.providers.aer import QasmSimulator
-    backend = QasmSimulator(method = 'statevector')
-    register = np.arange(0, qc1.num_qubits, 1)
-    qc1.measure(register, register)
-    qc2.measure(register, register)
-    result1 = execute(qc1, backend=backend, shots = 1).result()
-    count1 = result1.get_counts()
-    result2 = execute(qc2, backend=backend, shots = 1).result()
-    count2 = result2.get_counts()
-    number1 = list(count1.keys())[list(count1.values()).index(1)]
-    number2 = list(count2.keys())[list(count1.values()).index(1)]
-    return [number1, number2]
-
-# scoreNumber: Updates players' scores
-# cs1, cs2: current scores of Players 1 and 2
-def scoreNumber(qc1, qc2, cs1, cs2, targetNum):    
-    playerNums = oneShot(qc1, qc2)
-    if((playerNums[0] == targetNum and playerNums[1] == targetNum)):
-        cs1 += 3
-        cs2 += 3
-        print('Player 1 and 2 Both Attained the Target!')
-    elif(playerNums[0] == targetNum):
-        cs1 += 3
-        print('Player 1 Attained the Target!')
-    elif(playerNums[1] == targetNum):
-        cs1 += 3
-        print('Player 1 Attained the Target!')
-    elif(playerNums[0] == playerNums[1]):
-        cs1 += 1
-        cs2 += 1
-        print('Player 1 and 2 Attained the Same Number!')
-    elif(bin(playerNums[0]) < bin(playerNums[1])):
-        cs2 += 1
-        print('Player 2 Wins!')
-    elif(bin(playerNums[0]) > bin(playerNums[1])):
-        cs1 += 1
-        print('Player 1 Wins!')
 
 def drawScores():
   global myfont, screen, bounding_box
@@ -313,12 +268,15 @@ current_gate = '0'
 button_width = 50
 button_height = 50
 button_margin = 50
-button_spacing = 50
+button_spacing = 10
 buttons = [
-  Button(button_width, button_height, 'H', (255, 0, 0)),
-  Button(button_width, button_height, 'X', (255, 255, 0)),
-  Button(button_width, button_height, 'Y', (0, 0, 255)),
-  Button(button_width, button_height, 'Z', (0, 255, 0)),
+  Button(button_width, button_height, 'H'),
+  Button(button_width, button_height, 'X'),
+  Button(button_width, button_height, 'Y'),
+  Button(button_width, button_height, 'Z'),
+  Button(button_width, button_height, 'rotatecw'),
+  Button(button_width, button_height, 'rotateccw'),
+  Button(button_width, button_height, 'trash'),
 ]
 
 # Prepare stuff for text drawing
@@ -334,7 +292,7 @@ images = calculateGraphs()
 
 while True:
     drawGrid(bounding_box)
-    drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin)
+    drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin, bounding_box.width, button_spacing)
     drawScores()
     drawGraphs(images)
     mouse_pos = mouseCoordToGrid(bounding_box)
