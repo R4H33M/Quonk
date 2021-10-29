@@ -395,6 +395,4 @@ while True:
   # UPDATE THE SCREEN
   pygame.display.update()
   time.sleep(0.01)
-      
-game.py
-15 KB
+     
