@@ -104,10 +104,9 @@ def drawGridElements(boundingRect):
     for j in range(GRID_SIZE):
       if (board[i][j] != "0"):
         radius = vert_spacing * .4
-        pygame.draw.circle(screen, (255,0,0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), radius)
-        # text
-        label = myfont.render(board[i][j], True, (255, 255, 255))
-        screen.blit(label, (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)* hori_spacing))
+        gate = pygame.image.load("./assets/" + board[i][j] + ".png")
+        gate = pygame.transform.scale(gate, (radius*2,radius*2))
+        screen.blit(gate, (boundingRect.left + (i+1)*vert_spacing - radius, boundingRect.top + (j+1)*hori_spacing - radius))
 
 def drawButtons(buttons, left, top, box_width, box_height):
   spacing = (box_width - len(buttons) * box_height) / (len(buttons) - 1)
@@ -230,6 +229,9 @@ def drawGraphs(images):
   screen.blit(images[1], (bounding_box.left + bounding_box.width + margin, 50 + images[0].get_height() + 20))
 
 pygame.init()
+
+#Start screen
+
 
 # Create screen
 SCREEN_X = 640 * 1.5
