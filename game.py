@@ -195,18 +195,18 @@ def drawGrid(surface, boundingRect, color1, color2, cTurn):
   surface.blit(textsurface, (boundingRect.left, 3*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
 
 def oneShot(qc1, qc2):
-    backend = QasmSimulator(method = 'statevector')
-    register = np.arange(0, qc1.num_qubits, 1)
-    print(register)
-    qc1.measure(register, register)
-    qc2.measure(register, register)
-    result1 = execute(qc1, backend=backend, shots = 1).result()
-    count1 = result1.get_counts()
-    result2 = execute(qc2, backend=backend, shots = 1).result()
-    count2 = result2.get_counts()
-    number1 = list(count1.keys())[list(count1.values()).index(1)]
-    number2 = list(count2.keys())[list(count1.values()).index(1)]
-    return [number1, number2]
+  backend = QasmSimulator(method = 'statevector')
+  register = np.arange(0, qc1.num_qubits, 1)
+  print(register)
+  qc1.measure(register, register)
+  qc2.measure(register, register)
+  result1 = execute(qc1, backend=backend, shots = 1).result()
+  count1 = result1.get_counts()
+  result2 = execute(qc2, backend=backend, shots = 1).result()
+  count2 = result2.get_counts()
+  number1 = list(count1.keys())[list(count1.values()).index(1)]
+  number2 = list(count2.keys())[list(count1.values()).index(1)]
+  return [number1, number2]
 
 # INIT
 pygame.init()
@@ -226,7 +226,8 @@ score1 = 0
 score2 = 0
 PURPLE = (148,0,211)
 BLACK = (0,0,0)
-BACKGROUND_COLOR = (245, 245, 220 )
+BACKGROUND_COLOR = (245, 245, 220)
+
 #Odd if player 1, even if player 2
 currentTurn = 1
 currentGate = "0"
@@ -289,8 +290,16 @@ while True:
             currentGate = buttons[i].name
           elif (buttons[i].name == 'rotatecw'):
             board = rotateBoard('cw', board)
+            calBoard = calculateGraphs(board)
+            currentTurn += 1
+            circs = boardsToCircuit(board)
+            score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
           elif (buttons[i].name == 'rotateccw'):
             board = rotateBoard('ccw', board)
+            calBoard = calculateGraphs(board)
+            currentTurn += 1
+            circs = boardsToCircuit(board)
+            score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
           elif (buttons[i].name == 'trash'):
             currentGate = '0'
       if button_pressed:
@@ -299,7 +308,7 @@ while True:
       mouseGrid = mouseCoordToGrid(gridRect)
       if (mouseGrid[0] < 0):
         continue
-      
+
       # Add gate
       board[mouseGrid[0]][mouseGrid[1]] = currentGate
       # New turn
