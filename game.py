@@ -39,7 +39,7 @@ def scoreNumber(qc1, qc2, cs1, cs2, targetNum):
         cs1 += 3
         print('Player 1 Attained the Target!')
     elif(playerNums[1] == targetNum):
-        cs1 += 3
+        cs2 += 3
         print('Player 1 Attained the Target!')
     elif(playerNums[0] == playerNums[1]):
         cs1 += 1
