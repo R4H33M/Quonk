@@ -103,32 +103,16 @@ def drawGridElements(boundingRect):
   for i in range(GRID_SIZE):
     for j in range(GRID_SIZE):
       if (board[i][j] != "0"):
-        # H gate
-        color = (0, 0, 0)
-        if board[i][j] == "H":
-          color = (255, 0, 0)
-        # X gate
-        if board[i][j] == "X":
-          color = (255, 255, 0)
-        # Y gate
-        if board[i][j] == "Y":
-          color = (0, 0, 255)
-        # Z gate
-        if board[i][j] == "Z":
-          color = (0, 255, 0)
         radius = vert_spacing * .4
-        pygame.draw.circle(screen, color, (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), radius)
+        pygame.draw.circle(screen, (255,0,0), (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)*hori_spacing), radius)
         # text
         label = myfont.render(board[i][j], True, (255, 255, 255))
         screen.blit(label, (boundingRect.left + (i+1)*vert_spacing, boundingRect.top + (j+1)* hori_spacing))
 
-
-
-def drawButtons(buttons, left, top, box_width, spacing):
-  button_width = (box_width - spacing * (len(buttons) - 1)) / len(buttons)
+def drawButtons(buttons, left, top, box_width, box_height):
+  spacing = (box_width - len(buttons) * box_height) / (len(buttons) - 1)
   for i in range(len(buttons)):
-    buttons[i].draw(left + i * (buttons[i].width + button_spacing), top, button_width, button_width)
-
+    buttons[i].draw(left + i * (box_height + spacing), top, box_height, box_height)
 
 def calculateScore(player, qubit):
   global simulator
@@ -292,7 +276,7 @@ images = calculateGraphs()
 
 while True:
     drawGrid(bounding_box)
-    drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin, bounding_box.width, button_spacing)
+    drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin, bounding_box.width, 45)
     drawScores()
     drawGraphs(images)
     mouse_pos = mouseCoordToGrid(bounding_box)
