@@ -1,45 +1,58 @@
-import pygame, sys, time, qiskit, math
 from qiskit import *
+import pygame, sys, time, qiskit, math, random
 import numpy as np
 from qiskit.quantum_info import Statevector
 import matplotlib.pyplot as plt
-simulator = Aer.get_backend('aer_simulator')
+from qiskit.providers.aer import QasmSimulator
 
-probabilities = [] # Used to keep all probability data
-
-# Gate selector buttons
 class Button:
-  def __init__(self, width, height, name):
-    self.width = width
-    self.height = height
+  def __init__(self, name, left, top, width, height):
     self.name = name
+    self.left = left
+    self.top = top
+    self.width = width 
+    self.height = height
+    self.image = pygame.image.load("./assets/" + self.name + ".png")
+    self.image = pygame.transform.scale(self.image, (width, height))
 
   # Returns true if mouse position is on the button
-  def mouseOnButton(self, left, top, mouse_pos):
-    return (mouse_pos[0] > left and mouse_pos[0] < left + self.width and mouse_pos[1] > top and mouse_pos[1] < top + self.height)
+  def mouseOnButton(self, mouse_pos):
+    return (mouse_pos[0] > self.left and mouse_pos[0] < self.left + self.width and mouse_pos[1] > self.top and mouse_pos[1] < self.top + self.height)
 
   # Render button
-  def draw(self, left, top, width, height): 
-    image = pygame.image.load("./assets/" + self.name + ".png")
-    image = pygame.transform.scale(image, (width, height))
-    screen.blit(image, (left, top))
+  def draw(self): 
+    if (self.mouseOnButton(pygame.mouse.get_pos())):
+      HOVER_SCALE = 1.1
+      image = pygame.transform.scale(self.image, (self.width * HOVER_SCALE, self.height * HOVER_SCALE))
+      screen.blit(image, (self.left - (self.width*HOVER_SCALE - self.width)/2, self.top - (self.height*HOVER_SCALE - self.height)/2))
+    else: 
+      screen.blit(self.image, (self.left, self.top))
 
-def quitGame():
-  pygame.display.quit()
-  sys.exit()
+def scoreNumber(qc1, qc2, cs1, cs2, targetNum):    
+    playerNums = oneShot(qc1, qc2)
+    print(playerNums[0])
+    if((playerNums[0] == targetNum and playerNums[1] == targetNum)):
+        cs1 += 3
+        cs2 += 3
+        print('Player 1 and 2 Both Attained the Target!')
+    elif(playerNums[0] == targetNum):
+        cs1 += 3
+        print('Player 1 Attained the Target!')
+    elif(playerNums[1] == targetNum):
+        cs1 += 3
+        print('Player 1 Attained the Target!')
+    elif(playerNums[0] == playerNums[1]):
+        cs1 += 1
+        cs2 += 1
+        print('Player 1 and 2 Attained the Same Number!')
+    elif(int(playerNums[0]) < int(playerNums[1])):
+        cs2 += 1
+        print('Player 2 Wins!')
+    elif(int(playerNums[0]) > int(playerNums[1])):
+        cs1 += 1
+        print('Player 1 Wins!')
+    return cs1, cs2, playerNums[0], playerNums[1]
 
-#Draw a grid of size GRID_SIZE within a bounding box
-def drawGrid(boundingRect):
-  #Draw vertical lines
-  vert_spacing = boundingRect.width/(GRID_SIZE+1)
-  for i in range(GRID_SIZE):
-    pygame.draw.rect(screen, (255,0,0), ((i+1)*vert_spacing + boundingRect.left, boundingRect.top, GRID_THICKNESS, boundingRect.height))
-  #Draw horizontal lines
-  hori_spacing = boundingRect.height/(GRID_SIZE+1)
-  for i in range(GRID_SIZE):
-    pygame.draw.rect(screen, (255,0,0), (boundingRect.left, (i+1)*hori_spacing + boundingRect.top, boundingRect.width ,GRID_THICKNESS))
-
-# Convert mouse's x,y position to i,j on the grid
 def mouseCoordToGrid(boundingRect):
   mouse_pos = pygame.mouse.get_pos()
   vert_spacing = boundingRect.width/(GRID_SIZE+1)
@@ -49,98 +62,65 @@ def mouseCoordToGrid(boundingRect):
   if i < 0 or i > GRID_SIZE - 1 or j < 0 or j > GRID_SIZE - 1:
     i = -1
     j = -1
-  return (i, j)
+  return(i, j)
 
-# Handles user input
-def handleEvents():
-  global current_gate, board
-  events = pygame.event.get()
-  for i in range(len(events)):
-    if events[i].type == pygame.QUIT:
-      quitGame()
-    elif events[i].type == pygame.MOUSEBUTTONDOWN:
-      # check if pressing button
-      for i in range(len(buttons)):
-        if buttons[i].mouseOnButton(bounding_box.left + i * (buttons[i].width + button_spacing), bounding_box.top + bounding_box.height + button_margin, pygame.mouse.get_pos()):
-          print("BUTTON " + buttons[i].name)
-          if len(buttons[i].name) == 1:
-            current_gate = buttons[i].name
-          elif (buttons[i].name == 'rotatecw'):
-            rotateBoard('cw')
-          elif (buttons[i].name == 'rotateccw'):
-            rotateBoard('ccw')
-          elif (buttons[i].name == 'trash'):
-            current_gate = '0'
-          return
-      # check if out of bounds
-      if (mouse_pos[0]) < 0:
-        return
-      # update board
-      board[mouse_pos[0]][mouse_pos[1]] = current_gate
-      global images
-      images = calculateGraphs()
+def generateCode(n):
+  if n==1:
+    return ['0', '1']
+  else:
+    return ['0'+ x for x in generateCode(n-1)] + ['1'+x for x in generateCode(n-1)]
 
-def boardLineToCircuit(player, qubit):
-  global board
-  qc = qiskit.QuantumCircuit(1)
+def targetNumber(GRID_SIZE):
+  numstr = ''
   for i in range(GRID_SIZE):
-    if player == 1:
-      if board[i][qubit] == "H": qc.h(0)
-      if board[i][qubit] == "X": qc.x(0)
-      if board[i][qubit] == "Y": qc.y(0)
-      if board[i][qubit] == "Z": qc.z(0)
-    elif player == 2:
-      if board[qubit][i] == "H": qc.h(0)
-      if board[qubit][i] == "X": qc.x(0)
-      if board[qubit][i] == "Y": qc.y(0)
-      if board[qubit][i] == "Z": qc.z(0)
-  return qc
+    numstr += str(random.randint(0, 1))
+  return numstr
+
+def getProbability(qc):
+    state = Statevector(qc)
+    probs = state.probabilities()
+    return probs #NumPy array
+
+def rotateBoard(direction, gameBoard):
+  newboard = []
+  for i in range(GRID_SIZE):
+      newboard.append(gameBoard[i].copy())
+  if (direction == 'cw'):
+    for i in range(GRID_SIZE):
+      for j in range(GRID_SIZE):
+        newboard[GRID_SIZE-i-1][j] = gameBoard[j][i]
+  elif (direction == 'ccw'):  
+    for i in range(GRID_SIZE):
+      for j in range(GRID_SIZE):
+        newboard[i][GRID_SIZE - j - 1] = gameBoard[j][i]
+  return newboard
+
+def drawButtons(buttons):
+  for button in buttons:
+    button.draw()
+
+def calculateGraphs(gameBoard):
+  player = 0
+  plotProbability(getProbability(boardsToCircuit(gameBoard)[player]))
+  image1 = pygame.image.load("./plot.png")
+  image1 = pygame.transform.scale(image1, (356, image1.get_height() * 356 / image1.get_width()))
+  player = 1
+  plotProbability(getProbability(boardsToCircuit(gameBoard)[player]))
+  image2 = pygame.image.load("./plot.png")
+  image2 = pygame.transform.scale(image2, (356, image2.get_height() * 356 / image2.get_width()))
+  return (image1, image2)
 
 def drawGridElements(boundingRect):
-  global board
   vert_spacing = boundingRect.width/(GRID_SIZE+1)
   hori_spacing = boundingRect.height/(GRID_SIZE+1)
   for i in range(GRID_SIZE):
     for j in range(GRID_SIZE):
       if (board[i][j] != "0"):
         radius = vert_spacing * .4
-        gate = pygame.image.load("./assets/" + board[i][j] + ".png")
+        gate = ASSETS[board[i][j]]
         gate = pygame.transform.scale(gate, (radius*2,radius*2))
         screen.blit(gate, (boundingRect.left + (i+1)*vert_spacing - radius, boundingRect.top + (j+1)*hori_spacing - radius))
 
-def drawButtons(buttons, left, top, box_width, box_height):
-  spacing = (box_width - len(buttons) * box_height) / (len(buttons) - 1)
-  for i in range(len(buttons)):
-    buttons[i].draw(left + i * (box_height + spacing), top, box_height, box_height)
-
-def calculateScore(player, qubit):
-  global simulator
-  circuit = boardLineToCircuit(player, qubit)
-  circuit.save_statevector()
-  circuit = transpile(circuit, simulator)
-  result = simulator.run(circuit).result()
-  statevector = result.get_statevector(circuit)
-  return np.around(np.real(statevector[1]*np.conj(statevector[1])), decimals = 2)
-
-# Calculate Probability Vector
-def getProbability(qc):
-    state = Statevector(qc)
-    probs = state.probabilities()
-    probabilities.append(probs)
-    return probs #NumPy array
-
-# Visualising the Probability Distribution
-
-# Generate all possible binary strings of length n
-# list returns [0, 1, 2, ..., 1<<n - 1] in binary
-def generateCode(n):
-  if n==1:
-    return ['0', '1']
-  
-  else:
-    return ['0'+ x for x in generateCode(n-1)] + ['1'+x for x in generateCode(n-1)]
-
-# Plot probability using matplotlib
 def plotProbability(data):
   n = math.log2(data.size)
   xk = generateCode(n)
@@ -156,134 +136,208 @@ def plotProbability(data):
   plt.savefig("./plot.png")
   plt.clf()
 
-#clockwise 90 degree rotation (no animations!)
-def rotateBoard(direction):
-  global board
-  newboard = []
-  if (direction == 'cw'):
-    for i in range(GRID_SIZE):
-      newboard.append(board[i].copy())
-    for i in range(GRID_SIZE):
-      for j in range(GRID_SIZE):
-        newboard[GRID_SIZE-i-1][j] = board[j][i]
-    board = newboard
-  elif (direction == 'ccw'):
-    for i in range(GRID_SIZE):
-      newboard.append(board[i].copy())
-    for i in range(GRID_SIZE):
-      for j in range(GRID_SIZE):
-        newboard[i][GRID_SIZE - j - 1] = board[j][i]
-    board = newboard
+def drawGraphs(images, Box1, Box2):
+  screen.blit(images[0], (Box1.left, Box1.top))
+  screen.blit(images[0], (Box2.left, Box2.top))
 
-def boardsToCircuit():
-  global board
-  qc1 = qiskit.QuantumCircuit(GRID_SIZE)
-  qc2 = qiskit.QuantumCircuit(GRID_SIZE)
+# RETURN TWO BOARDS: PLAYER 1s and PLAYER 2s
+def boardsToCircuit(gameBoard):
+  qc1 = qiskit.QuantumCircuit(GRID_SIZE,GRID_SIZE)
+  qc2 = qiskit.QuantumCircuit(GRID_SIZE, GRID_SIZE)
   for i in range(GRID_SIZE):
     for j in range(GRID_SIZE):
-      if (board[i][j] == "H"): qc1.h(j)
-      if (board[i][j] == "X"): qc1.x(j)
-      if (board[i][j] == "Y"): qc1.y(j)
-      if (board[i][j] == "Z"): qc1.z(j)
+      if (gameBoard[i][j] == "H"): qc1.h(j)
+      if (gameBoard[i][j] == "X"): qc1.x(j)
+      if (gameBoard[i][j] == "Y"): qc1.y(j)
+      if (gameBoard[i][j] == "Z"): qc1.z(j)
   for j in range(GRID_SIZE):
     for i in range(GRID_SIZE):
-      if (board[i][j] == "H"): qc2.h(i)
-      if (board[i][j] == "X"): qc2.x(i)
-      if (board[i][j] == "Y"): qc2.y(i)
-      if (board[i][j] == "Z"): qc2.z(i)
+      if (gameBoard[i][j] == "H"): qc2.h(i)
+      if (gameBoard[i][j] == "X"): qc2.x(i)
+      if (gameBoard[i][j] == "Y"): qc2.y(i)
+      if (gameBoard[i][j] == "Z"): qc2.z(i)
   return [qc1, qc2]
 
-# Visualising the Quantum State as a QSphere
-def qsphere(qc):
-    state = Statevector(qc)
-    state.draw('qsphere')
+# DRAWING GRID BASE
+def drawGrid(surface, boundingRect, color1, color2, cTurn):
+  #Draw vertical lines
+  #v_s = vert_spacing
+  v_s = boundingRect.width/(GRID_SIZE+1)
+  if cTurn%2==0: color1, color2 = color2, color1
+  for i in range(GRID_SIZE):
+    pygame.draw.rect(surface, color2, ((i+1)*v_s + boundingRect.left, boundingRect.top, GRID_THICKNESS, boundingRect.height))
+  #Draw horizontal lines
+  #h_s = horizontal_spacing
+  h_s = boundingRect.height/(GRID_SIZE+1)
+  for i in range(GRID_SIZE):
+    pygame.draw.rect(surface, color1, (boundingRect.left, (i+1)*h_s + boundingRect.top, boundingRect.width, GRID_THICKNESS))
+  #Draw the player 1 triangles
+  for i in range(GRID_SIZE):
+    pygame.draw.polygon(surface, color1, 
+      [[boundingRect.right, (i+1)*v_s + boundingRect.top + GRID_THICKNESS/2],[boundingRect.right-10, (i+1)*v_s+10  + boundingRect.top + GRID_THICKNESS/2],[boundingRect.right-10, (i+1)*v_s-10  + boundingRect.top + GRID_THICKNESS/2]])
+  #Draw the player 2 triangles
+    pygame.draw.polygon(surface, color2, 
+      [[boundingRect.left + (i+1)*v_s + GRID_THICKNESS/2 , boundingRect.bottom],[boundingRect.left + (i+1)*v_s+10 + GRID_THICKNESS/2 , boundingRect.bottom-10],[boundingRect.left + (i+1)*v_s-10 + GRID_THICKNESS/2, boundingRect.bottom-10]])
 
-def drawScores():
-  global myfont, screen, bounding_box
-  hori_spacing = bounding_box.height/(GRID_SIZE+1)
-  vert_spacing = bounding_box.width/(GRID_SIZE+1)
-  # for player 1
-  for qubit in range(GRID_SIZE):
-    textsurface = myfont.render(str(calculateScore(1, qubit)), False, (0, 0, 0))
-    screen.blit(textsurface, (bounding_box.right,(qubit+1)*hori_spacing + bounding_box.top))
-  
-  # for player 2
-  for qubit in range(GRID_SIZE):
-    textsurface = myfont.render(str(calculateScore(2, qubit)), False, (0, 0, 0))
-    screen.blit(textsurface, ((qubit+1)*vert_spacing + bounding_box.left, bounding_box.bottom))
+  # draw q0, q1, q2 on board
+  myfont = pygame.font.SysFont('Comic Sans MS', 30)
+  textsurface = myfont.render('q0', False, (0, 0, 0))
+  surface.blit(textsurface, (v_s + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
+  textsurface = myfont.render('q1', False, (0, 0, 0))
+  surface.blit(textsurface, (v_s*2 + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
+  textsurface = myfont.render('q2', False, (0, 0, 0))
+  surface.blit(textsurface, (v_s*3 + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
+  textsurface = myfont.render('q0', False, (0, 0, 0))
+  surface.blit(textsurface, (boundingRect.left, 1*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
+  textsurface = myfont.render('q1', False, (0, 0, 0))
+  surface.blit(textsurface, (boundingRect.left, (2)*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
+  textsurface = myfont.render('q2', False, (0, 0, 0))
+  surface.blit(textsurface, (boundingRect.left, 3*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
 
-def calculateGraphs():
-  player = 0
-  plotProbability(getProbability(boardsToCircuit()[player]))
-  image1 = pygame.image.load("./plot.png")
-  image1 = pygame.transform.scale(image1, (400, image1.get_height() * 400.0 / image1.get_width()))
-  player = 1
-  plotProbability(getProbability(boardsToCircuit()[player]))
-  image2 = pygame.image.load("./plot.png")
-  image2 = pygame.transform.scale(image2, (400, image2.get_height() * 400.0 / image2.get_width()))
-  return (image1, image2)
+def oneShot(qc1, qc2):
+    backend = QasmSimulator(method = 'statevector')
+    register = np.arange(0, qc1.num_qubits, 1)
+    print(register)
+    qc1.measure(register, register)
+    qc2.measure(register, register)
+    result1 = execute(qc1, backend=backend, shots = 1).result()
+    count1 = result1.get_counts()
+    result2 = execute(qc2, backend=backend, shots = 1).result()
+    count2 = result2.get_counts()
+    number1 = list(count1.keys())[list(count1.values()).index(1)]
+    number2 = list(count2.keys())[list(count1.values()).index(1)]
+    return [number1, number2]
 
-def drawGraphs(images):
-  margin = 50
-  screen.blit(images[0], (bounding_box.left + bounding_box.width + margin, 50))
-  screen.blit(images[1], (bounding_box.left + bounding_box.width + margin, 50 + images[0].get_height() + 20))
-
+# INIT
 pygame.init()
-
-#Start screen
-
-
-# Create screen
 SCREEN_X = 640 * 1.5
-SCREEN_Y = 480 * 1.5
+SCREEN_Y = 480 * 1.5 + 70 + 18
 screen = pygame.display.set_mode((SCREEN_X,SCREEN_Y))
+pygame.display.set_caption('Quonk')
 
-# Create grid board
+# GAME LABELS
+scoreLabel = "Player {num} score: {score}"
+statusLabel = "P1 Measured = {p1} | P2 Measured = {p2} | Target = {t} | Turns left = {tl}"
+
+# GAME VARIABLES
 GRID_SIZE = 3
 GRID_THICKNESS = 5
+score1 = 0
+score2 = 0
+PURPLE = (148,0,211)
+BLACK = (0,0,0)
+BACKGROUND_COLOR = (245, 245, 220 )
+#Odd if player 1, even if player 2
+currentTurn = 1
+currentGate = "0"
+pm1 = -1
+pm2 = -1
+targetN = targetNumber(GRID_SIZE)
+numTurns = 7
+
+# FONT
+mainFont = pygame.font.SysFont('Comic Sans MS', 50)
+mainFontSmall = pygame.font.SysFont('Comic Sans MS', 37)
+
+# DONT CHANGE ANYTHING!
+topRect = pygame.Rect(36, 36, 888, 70)
+gridRect = pygame.Rect(36,36 + 70 + 18, 500,500)
+buttonsRect = pygame.Rect(36,572 - 18 + 70 + 18, 500, 50)
+infoBox1 = pygame.Rect(36+500+36, 36 + 70 + 18, 352, 42)
+distRect1 = pygame.Rect(36+500+36, 36+42+10 + 70 + 18, 356, 267)
+infoBox2 = pygame.Rect(36+500+36, 36+42+10+267+10 + 70 + 18, 352, 42)
+distRect2 = pygame.Rect(36+500+36, 36+42+10+267+10+42+10 + 70 + 18, 356, 267)
+
+# LOAD ASSETS
+ASSETS = {}
+for i in ["H", "X", "Y", "Z"]:
+  ASSETS[i] = pygame.image.load("./assets/" + i + ".png")
+  
+# INITIALIZE THE BOARD
 board = []
 for i in range(GRID_SIZE):
   row = []
   for j in range(GRID_SIZE):
     row.append("0")
   board.append(row)
-bounding_box = pygame.Rect(100,100,400,400)
 
-# Create buttons  
-current_gate = '0'
-button_width = 50
-button_height = 50
-button_margin = 50
-button_spacing = 10
-buttons = [
-  Button(button_width, button_height, 'H'),
-  Button(button_width, button_height, 'X'),
-  Button(button_width, button_height, 'Y'),
-  Button(button_width, button_height, 'Z'),
-  Button(button_width, button_height, 'rotatecw'),
-  Button(button_width, button_height, 'rotateccw'),
-  Button(button_width, button_height, 'trash'),
-]
+# BUTTONS
+button_names = ['H', 'X', 'Y', 'Z', 'rotatecw', 'rotateccw', 'trash']
+buttons = []
+button_spacing = (buttonsRect.width - len(button_names) * buttonsRect.height) / (len(button_names) - 1)
+for i in range(len(button_names)):
+  buttons.append(Button(button_names[i], buttonsRect.left + (buttonsRect.height + button_spacing) * i, buttonsRect.top, buttonsRect.height, buttonsRect.height))
 
-# Prepare stuff for text drawing
-pygame.font.init()
-myfont = pygame.font.SysFont('Comic Sans MS', 45)
-
-# Testing board state
-board[0][0] = "H"
-print(boardsToCircuit()[0])
-print(boardsToCircuit()[1])
-
-images = calculateGraphs()
+calBoard = calculateGraphs(board)
 
 while True:
-    drawGrid(bounding_box)
-    drawButtons(buttons, bounding_box.left, bounding_box.top + bounding_box.height + button_margin, bounding_box.width, 45)
-    drawScores()
-    drawGraphs(images)
-    mouse_pos = mouseCoordToGrid(bounding_box)
-    drawGridElements(bounding_box)
-    handleEvents()
-    pygame.display.update()
-    screen.fill((255,255,255))
-    time.sleep(0.01)
+  # HANDLE EVENTS
+  events = pygame.event.get()
+  for i in range(len(events)):
+    # QUIT EVENT
+    if events[i].type == pygame.QUIT:
+      pygame.display.quit()
+      sys.exit()
+    # MOUSEDOWN EVENT
+    if events[i].type == pygame.MOUSEBUTTONDOWN:
+      button_pressed = False
+      for i in range(len(buttons)):
+        if buttons[i].mouseOnButton(pygame.mouse.get_pos()):
+          button_pressed = True
+          print("BUTTON " + buttons[i].name)
+          if len(buttons[i].name) == 1:
+            currentGate = buttons[i].name
+          elif (buttons[i].name == 'rotatecw'):
+            board = rotateBoard('cw', board)
+          elif (buttons[i].name == 'rotateccw'):
+            board = rotateBoard('ccw', board)
+          elif (buttons[i].name == 'trash'):
+            currentGate = '0'
+      if button_pressed:
+        continue
+
+      mouseGrid = mouseCoordToGrid(gridRect)
+      if (mouseGrid[0] < 0):
+        continue
+      
+      # Add gate
+      board[mouseGrid[0]][mouseGrid[1]] = currentGate
+      # New turn
+      currentTurn+=1
+      # Update distributions
+      calBoard = calculateGraphs(board)
+      # UPDATE SCORES
+      # get circuits
+      circs = boardsToCircuit(board)
+      score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
+
+
+  # Clear the screen
+  screen.fill(BACKGROUND_COLOR)
+
+  # Draw the scores
+  textColor1 = PURPLE
+  textColor2 = BLACK
+  if currentTurn%2 == 0: textColor1, textColor2 = textColor2, textColor1
+  screen.blit(mainFont.render(scoreLabel.format(num=1, score=score1), True, textColor1), (infoBox1.left, infoBox1.top))
+  screen.blit(mainFont.render(scoreLabel.format(num=2, score=score2), True, textColor2), (infoBox2.left, infoBox2.top))
+
+  # Draw the grid
+  drawGrid(screen, gridRect, PURPLE, BLACK, currentTurn)
+
+  # Draw probability distributions
+  drawGraphs(calBoard, distRect1, distRect2)
+
+  # Draw game status
+  screen.blit(mainFontSmall.render(statusLabel.format(p1=pm1, p2=pm2, t=targetN, tl=numTurns-currentTurn), True, PURPLE), (topRect.left, topRect.top))
+
+  # Draw grid elements
+  drawGridElements(gridRect)
+  pygame.draw.rect(screen, BACKGROUND_COLOR, buttonsRect)
+
+  # Draw button
+  drawButtons(buttons)
+
+  # UPDATE THE SCREEN
+  pygame.display.update()
+  time.sleep(0.01)
