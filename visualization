@@ -1,5 +1,4 @@
 %matplotlib inline
-
 from matplotlib import *
 from qiskit import *
 from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
@@ -9,15 +8,27 @@ import matplotlib
 import seaborn
 
 def drawGrid(size, board):
+  size = int(size)
+
   plt.figure()
 
   for i in range(1, size): 
     plt.plot([i, i], [0.5, size-0.5], color = 'black')
     plt.plot([0.5, size-0.5], [i, i], color = 'black')
 
-  for i in range(size):
-    for j in range(size):
-      # plot according to board[i][j]
+  for i in range(1, size): 
+    
+    for j in range(1, size):
+
+      x_loc = i
+      y_loc = j
+      bsize = 0.1
+        
+      if board[i][j]=='H':
+        plt.text(x_loc, y_loc, 'H', fontsize = 22, color='white')
+
+      plt.fill([x_loc-bsize, x_loc-bsize, x_loc+bsize, x_loc+bsize], [y_loc-bsize, y_loc+bsize, y_loc+bsize, y_loc-bsize], color = 'lightblue', alpha = 1.0)
+      
 
   plt.axis('off')
   plt.show()
