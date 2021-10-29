@@ -12,7 +12,7 @@ class Button:
     self.top = top
     self.width = width 
     self.height = height
-    self.image = pygame.image.load("./assets/" + self.name + ".png")
+    self.image = pygame.image.load("./assets/" + self.name + ".jpg")
     self.image = pygame.transform.scale(self.image, (width, height))
 
   # Returns true if mouse position is on the button
@@ -194,19 +194,20 @@ def drawGrid(surface, boundingRect, color1, color2, cTurn):
   textsurface = myfont.render('q2', False, (0, 0, 0))
   surface.blit(textsurface, (boundingRect.left, 3*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
 
+
 def oneShot(qc1, qc2):
-  backend = QasmSimulator(method = 'statevector')
-  register = np.arange(0, qc1.num_qubits, 1)
-  print(register)
-  qc1.measure(register, register)
-  qc2.measure(register, register)
-  result1 = execute(qc1, backend=backend, shots = 1).result()
-  count1 = result1.get_counts()
-  result2 = execute(qc2, backend=backend, shots = 1).result()
-  count2 = result2.get_counts()
-  number1 = list(count1.keys())[list(count1.values()).index(1)]
-  number2 = list(count2.keys())[list(count1.values()).index(1)]
-  return [number1, number2]
+    backend = QasmSimulator(method = 'statevector')
+    register = np.arange(0, qc1.num_qubits, 1)
+    print(register)
+    qc1.measure(register, register)
+    qc2.measure(register, register)
+    result1 = execute(qc1, backend=backend, shots = 1).result()
+    count1 = result1.get_counts()
+    result2 = execute(qc2, backend=backend, shots = 1).result()
+    count2 = result2.get_counts()
+    number1 = list(count1.keys())[list(count1.values()).index(1)]
+    number2 = list(count2.keys())[list(count1.values()).index(1)]
+    return [number1, number2]
 
 # INIT
 pygame.init()
@@ -220,17 +221,17 @@ scoreLabel = "Player {num} score: {score}"
 statusLabel = "P1 Measured = {p1} | P2 Measured = {p2} | Target = {t} | Turns left = {tl}"
 
 # GAME VARIABLES
+gameState = "MENU"
 GRID_SIZE = 3
 GRID_THICKNESS = 5
 score1 = 0
 score2 = 0
 PURPLE = (148,0,211)
 BLACK = (0,0,0)
-BACKGROUND_COLOR = (245, 245, 220)
-
+BACKGROUND_COLOR = (245, 245, 220 )
 #Odd if player 1, even if player 2
 currentTurn = 1
-currentGate = "0"
+currentGate = "X"
 pm1 = -1
 pm2 = -1
 targetN = targetNumber(GRID_SIZE)
@@ -240,10 +241,20 @@ numTurns = 7
 mainFont = pygame.font.SysFont('Comic Sans MS', 50)
 mainFontSmall = pygame.font.SysFont('Comic Sans MS', 37)
 
+# FINISH SCREEN ASSET 1 = p1 won, 2 = p2 won, 3 = tie
+finishScreen1 = pygame.image.load("./assets/finishScreen1.jpeg")
+finishScreen1 = pygame.transform.scale(finishScreen1, (960, 808))
+finishScreen2 = pygame.image.load("./assets/finishScreen2.jpeg")
+finishScreen2 = pygame.transform.scale(finishScreen2, (960, 808))
+finishScreen3 = pygame.image.load("./assets/finishScreen3.jpeg")
+finishScreen3 = pygame.transform.scale(finishScreen3, (960, 808))
+startMenu = pygame.image.load("./assets/startMenu.jpeg")
+startMenu = pygame.transform.scale(startMenu, (960, 808))
+
 # DONT CHANGE ANYTHING!
 topRect = pygame.Rect(36, 36, 888, 70)
 gridRect = pygame.Rect(36,36 + 70 + 18, 500,500)
-buttonsRect = pygame.Rect(36,572 - 18 + 70 + 18, 500, 50)
+buttonsRect = pygame.Rect(36,572 + 70 + 18, 500, 50)
 infoBox1 = pygame.Rect(36+500+36, 36 + 70 + 18, 352, 42)
 distRect1 = pygame.Rect(36+500+36, 36+42+10 + 70 + 18, 356, 267)
 infoBox2 = pygame.Rect(36+500+36, 36+42+10+267+10 + 70 + 18, 352, 42)
@@ -252,7 +263,7 @@ distRect2 = pygame.Rect(36+500+36, 36+42+10+267+10+42+10 + 70 + 18, 356, 267)
 # LOAD ASSETS
 ASSETS = {}
 for i in ["H", "X", "Y", "Z"]:
-  ASSETS[i] = pygame.image.load("./assets/" + i + ".png")
+  ASSETS[i] = pygame.image.load("./assets/" + i + ".jpg")
   
 # INITIALIZE THE BOARD
 board = []
@@ -262,7 +273,7 @@ for i in range(GRID_SIZE):
     row.append("0")
   board.append(row)
 
-# BUTTONS
+# BUTTON 
 button_names = ['H', 'X', 'Y', 'Z', 'rotatecw', 'rotateccw', 'trash']
 buttons = []
 button_spacing = (buttonsRect.width - len(button_names) * buttonsRect.height) / (len(button_names) - 1)
@@ -272,6 +283,38 @@ for i in range(len(button_names)):
 calBoard = calculateGraphs(board)
 
 while True:
+
+  # MENU and FINISH state
+  if gameState == "MENU":
+    events = pygame.event.get()
+    for i in range(len(events)):
+      if events[i].type == pygame.QUIT:
+        pygame.display.quit()
+        sys.exit()
+      if events[i].type == pygame.MOUSEBUTTONDOWN:
+        gameState = "game"
+    screen.fill(BACKGROUND_COLOR)
+    screen.blit(startMenu, (0,0))
+    pygame.display.update()
+    time.sleep(0.01)
+    continue
+  elif gameState == "FINISH":
+    events = pygame.event.get()
+    for i in range(len(events)):
+      if events[i].type == pygame.QUIT:
+        pygame.display.quit()
+        sys.exit()
+    screen.fill(BACKGROUND_COLOR)
+    if (score1 > score2): screen.blit(finishScreen1, (0,0))
+    elif (score1 < score2): screen.blit(finishScreen2, (0,0))
+    else: screen.blit(finishScreen3, (0,0))
+    if not (score1 == score2):
+      screen.blit(mainFont.render(str(score1), True, (255,255,255)), (154,170))
+      screen.blit(mainFont.render(str(score2), True, (255,255,255)), (628,170))
+    pygame.display.update()
+    time.sleep(0.01)
+    continue
+
   # HANDLE EVENTS
   events = pygame.event.get()
   for i in range(len(events)):
@@ -280,6 +323,7 @@ while True:
       pygame.display.quit()
       sys.exit()
     # MOUSEDOWN EVENT
+
     if events[i].type == pygame.MOUSEBUTTONDOWN:
       button_pressed = False
       for i in range(len(buttons)):
@@ -294,12 +338,14 @@ while True:
             currentTurn += 1
             circs = boardsToCircuit(board)
             score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
+            if (numTurns-currentTurn == 0): gameState = "FINISH"
           elif (buttons[i].name == 'rotateccw'):
             board = rotateBoard('ccw', board)
             calBoard = calculateGraphs(board)
             currentTurn += 1
             circs = boardsToCircuit(board)
             score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
+            if (numTurns-currentTurn == 0): gameState = "FINISH"
           elif (buttons[i].name == 'trash'):
             currentGate = '0'
       if button_pressed:
@@ -308,7 +354,7 @@ while True:
       mouseGrid = mouseCoordToGrid(gridRect)
       if (mouseGrid[0] < 0):
         continue
-
+      
       # Add gate
       board[mouseGrid[0]][mouseGrid[1]] = currentGate
       # New turn
@@ -319,7 +365,7 @@ while True:
       # get circuits
       circs = boardsToCircuit(board)
       score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
-
+      if (numTurns-currentTurn == 0): gameState = "FINISH"
 
   # Clear the screen
   screen.fill(BACKGROUND_COLOR)
@@ -340,13 +386,15 @@ while True:
   # Draw game status
   screen.blit(mainFontSmall.render(statusLabel.format(p1=pm1, p2=pm2, t=targetN, tl=numTurns-currentTurn), True, PURPLE), (topRect.left, topRect.top))
 
+  # Draw buttons
+  drawButtons(buttons)
+
   # Draw grid elements
   drawGridElements(gridRect)
-  pygame.draw.rect(screen, BACKGROUND_COLOR, buttonsRect)
-
-  # Draw button
-  drawButtons(buttons)
 
   # UPDATE THE SCREEN
   pygame.display.update()
   time.sleep(0.01)
+      
+game.py
+15 KB
