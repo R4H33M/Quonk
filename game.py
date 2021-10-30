@@ -138,7 +138,7 @@ def plotProbability(data):
 
 def drawGraphs(images, Box1, Box2):
   screen.blit(images[0], (Box1.left, Box1.top))
-  screen.blit(images[0], (Box2.left, Box2.top))
+  screen.blit(images[1], (Box2.left, Box2.top))
 
 # RETURN TWO BOARDS: PLAYER 1s and PLAYER 2s
 def boardsToCircuit(gameBoard):
