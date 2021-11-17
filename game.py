@@ -95,8 +95,12 @@ def rotateBoard(direction, gameBoard):
         newboard[i][GRID_SIZE - j - 1] = gameBoard[j][i]
   return newboard
 
-def drawButtons(buttons):
+def drawButtons(buttons, currentTurn):
   for button in buttons:
+    if (button.name == 'rotateccw' and currentTurn % 2 == 1):
+      continue 
+    if (button.name == 'rotatecw' and currentTurn % 2 == 0):
+      continue
     button.draw()
 
 def calculateGraphs(gameBoard):
@@ -181,19 +185,10 @@ def drawGrid(surface, boundingRect, color1, color2, cTurn):
 
   # draw q0, q1, q2 on board
   myfont = pygame.font.SysFont('Comic Sans MS', 30)
-  textsurface = myfont.render('q0', False, (0, 0, 0))
-  surface.blit(textsurface, (v_s + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
-  textsurface = myfont.render('q1', False, (0, 0, 0))
-  surface.blit(textsurface, (v_s*2 + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
-  textsurface = myfont.render('q2', False, (0, 0, 0))
-  surface.blit(textsurface, (v_s*3 + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
-  textsurface = myfont.render('q0', False, (0, 0, 0))
-  surface.blit(textsurface, (boundingRect.left, 1*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
-  textsurface = myfont.render('q1', False, (0, 0, 0))
-  surface.blit(textsurface, (boundingRect.left, (2)*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
-  textsurface = myfont.render('q2', False, (0, 0, 0))
-  surface.blit(textsurface, (boundingRect.left, 3*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
-
+  for i in range (GRID_SIZE):
+    textsurface = myfont.render('q' + str(i), False, (0,0,0))
+    surface.blit(textsurface, (v_s*(i+1) + boundingRect.left - 30, boundingRect.top, GRID_THICKNESS, boundingRect.height))
+    surface.blit(textsurface, (boundingRect.left, (i+1)*h_s + boundingRect.top-30, boundingRect.width, GRID_THICKNESS))
 
 def oneShot(qc1, qc2):
     backend = QasmSimulator(method = 'statevector')
@@ -228,7 +223,7 @@ score1 = 0
 score2 = 0
 PURPLE = (148,0,211)
 BLACK = (0,0,0)
-BACKGROUND_COLOR = (245, 245, 220 )
+BACKGROUND_COLOR = (245, 245, 220)
 #Odd if player 1, even if player 2
 currentTurn = 1
 currentGate = "X"
@@ -267,11 +262,15 @@ for i in ["H", "X", "Y", "Z"]:
   
 # INITIALIZE THE BOARD
 board = []
-for i in range(GRID_SIZE):
-  row = []
-  for j in range(GRID_SIZE):
-    row.append("0")
-  board.append(row)
+calBoard = []
+
+def initializeBoard(board, GRID_SIZE):
+  board.clear()
+  for i in range(GRID_SIZE):
+    row = []
+    for j in range(GRID_SIZE):
+      row.append("0")
+    board.append(row)
 
 # BUTTON 
 button_names = ['H', 'X', 'Y', 'Z', 'rotatecw', 'rotateccw', 'trash']
@@ -280,21 +279,56 @@ button_spacing = (buttonsRect.width - len(button_names) * buttonsRect.height) / 
 for i in range(len(button_names)):
   buttons.append(Button(button_names[i], buttonsRect.left + (buttonsRect.height + button_spacing) * i, buttonsRect.top, buttonsRect.height, buttonsRect.height))
 
-calBoard = calculateGraphs(board)
-
 while True:
-
   # MENU and FINISH state
   if gameState == "MENU":
+    screen.fill(BACKGROUND_COLOR)
+    screen.blit(startMenu, (0,0))
+
+    # Draw buttons for selecting grid size. messy
+    text = mainFont.render('3x3', False, (255, 255, 255))
+    width = text.get_width()
+    margin = 10
+    height = 50
+    button3 = pygame.Surface((width + margin * 2, height))
+    pygame.draw.rect(button3, (218, 59, 38), (0, 0, width + margin * 2, height))
+    button3.blit(text, (margin, margin))
+    screen.blit(button3, (375, 640))
+
+    text = mainFont.render('4x4', False, (255, 255, 255))
+    width = text.get_width()
+    button4 = pygame.Surface((width + margin * 2, height))
+    pygame.draw.rect(button4, (218, 59, 38), (0, 0, width + margin * 2, height))
+    button4.blit(text, (margin, margin))
+    screen.blit(button4, (525, 640))
+
+    # Handle events
     events = pygame.event.get()
     for i in range(len(events)):
       if events[i].type == pygame.QUIT:
         pygame.display.quit()
         sys.exit()
       if events[i].type == pygame.MOUSEBUTTONDOWN:
-        gameState = "game"
-    screen.fill(BACKGROUND_COLOR)
-    screen.blit(startMenu, (0,0))
+        # Start new game
+        if pygame.mouse.get_pos()[1] > 640 and pygame.mouse.get_pos()[1] < 640 + height:
+          game_start = False
+          if pygame.mouse.get_pos()[0] > 375 and pygame.mouse.get_pos()[0] < 375 + width + margin*2:
+            GRID_SIZE = 3
+            game_start = True
+          elif pygame.mouse.get_pos()[0] > 525 and pygame.mouse.get_pos()[0] < 525 + width + margin*2:
+            GRID_SIZE = 4
+            game_start = True
+          if game_start:
+            initializeBoard(board, GRID_SIZE)
+            targetN = targetNumber(GRID_SIZE)   
+            calBoard = calculateGraphs(board) 
+            gameState = "game"         
+            score1 = 0
+            score2 = 0
+            currentTurn = 1
+            currentGate = "X"
+            pm1 = -1
+            pm2 = -1
     pygame.display.update()
     time.sleep(0.01)
     continue
@@ -304,6 +338,10 @@ while True:
       if events[i].type == pygame.QUIT:
         pygame.display.quit()
         sys.exit()
+      if events[i].type == pygame.MOUSEBUTTONDOWN:
+        gameState = "MENU" 
+
+    # Draw
     screen.fill(BACKGROUND_COLOR)
     if (score1 > score2): screen.blit(finishScreen1, (0,0))
     elif (score1 < score2): screen.blit(finishScreen2, (0,0))
@@ -311,6 +349,8 @@ while True:
     if not (score1 == score2):
       screen.blit(mainFont.render(str(score1), True, (255,255,255)), (154,170))
       screen.blit(mainFont.render(str(score2), True, (255,255,255)), (628,170))
+    screen.blit(mainFont.render("Click anywhere to play again!", True, (255, 255, 255)), (200, 650))
+
     pygame.display.update()
     time.sleep(0.01)
     continue
@@ -322,8 +362,8 @@ while True:
     if events[i].type == pygame.QUIT:
       pygame.display.quit()
       sys.exit()
-    # MOUSEDOWN EVENT
 
+    # MOUSEDOWN EVENT
     if events[i].type == pygame.MOUSEBUTTONDOWN:
       button_pressed = False
       for i in range(len(buttons)):
@@ -332,14 +372,14 @@ while True:
           print("BUTTON " + buttons[i].name)
           if len(buttons[i].name) == 1:
             currentGate = buttons[i].name
-          elif (buttons[i].name == 'rotatecw'):
+          elif (buttons[i].name == 'rotatecw' and currentTurn % 2 != 0):
             board = rotateBoard('cw', board)
             calBoard = calculateGraphs(board)
             currentTurn += 1
             circs = boardsToCircuit(board)
             score1, score2, pm1, pm2 = scoreNumber(circs[0], circs[1], score1, score2, targetN)
             if (numTurns-currentTurn == 0): gameState = "FINISH"
-          elif (buttons[i].name == 'rotateccw'):
+          elif (buttons[i].name == 'rotateccw' and currentTurn % 2 != 1):
             board = rotateBoard('ccw', board)
             calBoard = calculateGraphs(board)
             currentTurn += 1
@@ -387,7 +427,7 @@ while True:
   screen.blit(mainFontSmall.render(statusLabel.format(p1=pm1, p2=pm2, t=targetN, tl=numTurns-currentTurn), True, PURPLE), (topRect.left, topRect.top))
 
   # Draw buttons
-  drawButtons(buttons)
+  drawButtons(buttons, currentTurn)
 
   # Draw grid elements
   drawGridElements(gridRect)
